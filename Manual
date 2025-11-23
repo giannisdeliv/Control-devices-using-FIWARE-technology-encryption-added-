@@ -1,0 +1,144 @@
+# MANUAL – Step-by-step setup (basic & HMAC versions)
+
+This manual describes the exact steps to run the project from scratch.
+It is organized into 7 main steps:
+
+1. Clone the repository  
+2. Prepare the hardware  
+3. Install the required software  
+4. Configure IP addresses and keys  
+5. Run the basic (No_decryption) version  
+6. Run the secure (HMAC) version  
+7. Verify and troubleshoot
+
+---
+
+CLONE THE REPOSITORY
+
+On your laptop / PC:
+
+```bash
+git clone https://github.com/giannisdeliv/Control-devices-using-FIWARE-technology-encryption-added-.git
+cd Control-devices-using-FIWARE-technology-encryption-added-
+
+
+PREPARE HARDWARE
+
+Install Raspberry Pi OS.
+Connect the Pi to the same network as your laptop/PC.
+
+Connect data pin to GPIO 4 (BCM 4).
+Connect VCC and GND appropriately (e.g. 3.3 V).
+
+Connect the LED (with series resistor) to GPIO 17 (BCM 17).
+Use Pi ground (GND) as reference.
+Confirm that the Raspberry Pi has network connectivity and you know its IP address (e.g. 192.168.x.y).
+
+INSTALL THE REQUIRED SOFTWARE
+
+Docker & Docker Compose
+Git (already used above)
+Python 3
+Node-RED locally, if not using Docker, but the project assumes
+Node-RED is started via docker-compose.yml.
+
+LIBRARIES ON RASPBERRY PI
+
+sudo apt-get update
+sudo apt-get install python3-pip python3-libgpiod -y
+pip3 install flask RPi.GPIO adafruit-circuitpython-dht requests pycryptodome
+
+CONFIGURE IP ADRESSES
+
+<Laptop_IP> – laptop/PC running Docker + Node-RED + secure APIs
+<RaspberryPi_IP> – Raspberry Pi running the sensor and LED servers
+
+ENCRYPTED KEYS
+
+AES_KEY  = b'ThisIsA16ByteKey'      # 16 bytes
+HMAC_KEY = b'SecretHMACKey1234'
+
+BASIC VERSION(NO DECRYPTION)
+
+From the repository root on the laptop:
+
+docker compose up -d
+
+This starts:
+MongoDB,FIWARE Orion,Node-RED
+
+Import the basic Node-RED flow:
+1.Open http://<Laptop_IP>:1880.
+2.Menu → Import → Clipboard.
+3.Open No_decryption/dasboard_FINAL.json in a text editor and copy all.
+4.Paste into Node-RED, click Import.
+5.Verify that the HTTP Request node to the LED uses http://<RaspberryPi_IP>:5000/led.
+6.Click Deploy
+
+On the Raspberry Pi:
+cd /path/to/Control-devices-using-FIWARE-technology-encryption-added-/No_decryption
+python3 write_temp.py
+
+The script will periodically:
+1.Read DHT22 (GPIO 4)
+2.Send JSON { "temperature": ..., "humidity": ... } to Node-RED
+3.Trigger LED decisions in Node-RED
+4.Update FIWARE Orion via the Node-RED HTTP Request node
+
+SECURED VERSION(HMAC)
+1.Start the secure APIs on the laptop
+
+On the laptop, in a terminal:
+cd HMAC
+
+# Terminal 1
+python3 decrypt_api.py
+
+# Terminal 2
+python3 encrypt_api.py
+
+decrypt_api.py listens on port 5050
+encrypt_api.py listens on port 5051
+
+2.Import the secure Node-RED flow
+
+3.Open http://<Laptop_IP>:1880.
+Menu → Import → Clipboard.
+
+4.Copy the content of HMAC/dashboard_API.json and paste it.
+
+On the Raspberry Pi:
+
+cd /path/to/Control-devices-using-FIWARE-technology-encryption-added-/HMAC
+python3 led_server_API.py
+
+This server:
+Receives encrypted JSON (IV, ciphertext, HMAC)
+Verifies HMAC and decrypts with AES
+Extracts LED status (ON / OFF)
+Controls GPIO 17 accordingly
+
+After import, check that the HTTP Request nodes use:
+http://<Laptop_IP>:5050/decrypt_and_decide
+http://<Laptop_IP>:5051/encrypt_status
+http://<RaspberryPi_IP>:5000/led
+
+Click Deploy.
+
+
+SECURE SENDER ON RASPBERRY PI
+
+On the Raspberry Pi:
+cd /path/to/Control-devices-using-FIWARE-technology-encryption-added-/HMAC
+python3 write_temp_API.py
+
+
+The secure sender will:
+Read DHT22 data
+Encrypt and sign the payload using AES + HMAC
+Send the encrypted payload to the Node-RED /temperature endpoint
+Receive (optionally) responses depending on the flow configuration
+
+Now the full chain is:
+Raspberry Pi (encrypted data) → Node-RED → decrypt API → decide LED → encrypt API → Raspberry Pi (encrypted command).
+address (e.g. 192.168.x.y).
