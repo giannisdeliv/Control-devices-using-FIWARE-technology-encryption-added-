@@ -1,0 +1,288 @@
+[
+    {
+        "id": "923edc309a474b66",
+        "type": "tab",
+        "label": "FIWARE Temperature Flow",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "ui_tab",
+        "type": "ui_tab",
+        "name": "FIWARE Dashboard",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "ui_group",
+        "type": "ui_group",
+        "name": "Monitoring",
+        "tab": "ui_tab",
+        "order": 1,
+        "disp": true,
+        "width": 6,
+        "collapse": false
+    },
+    {
+        "id": "08f61b088fc18f0c",
+        "type": "ui_base",
+        "theme": {
+            "name": "theme-light",
+            "lightTheme": {
+                "default": "#0094CE",
+                "baseColor": "#0094CE",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif",
+                "edited": false
+            },
+            "darkTheme": {
+                "default": "#097479",
+                "baseColor": "#097479",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif",
+                "edited": false
+            },
+            "customTheme": {
+                "name": "Untitled Theme 1",
+                "default": "#4B7930",
+                "baseColor": "#4B7930",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif"
+            },
+            "themeState": {
+                "base-color": {
+                    "default": "#0094CE",
+                    "value": "#0094CE",
+                    "edited": false
+                },
+                "page-titlebar-backgroundColor": {
+                    "value": "#0094CE",
+                    "edited": false
+                },
+                "page-backgroundColor": {
+                    "value": "#fafafa",
+                    "edited": false
+                },
+                "page-sidebar-backgroundColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "group-textColor": {
+                    "value": "#1bbfff",
+                    "edited": false
+                },
+                "group-borderColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "group-backgroundColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "widget-textColor": {
+                    "value": "#111111",
+                    "edited": false
+                },
+                "widget-backgroundColor": {
+                    "value": "#0094ce",
+                    "edited": false
+                },
+                "widget-borderColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "base-font": {
+                    "value": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif"
+                }
+            },
+            "angularTheme": {
+                "primary": "indigo",
+                "accents": "blue",
+                "warn": "red",
+                "background": "grey",
+                "palette": "light"
+            }
+        },
+        "site": {
+            "name": "Node-RED Dashboard",
+            "hideToolbar": "false",
+            "allowSwipe": "false",
+            "lockMenu": "false",
+            "allowTempTheme": "true",
+            "dateFormat": "DD/MM/YYYY",
+            "sizes": {
+                "sx": 48,
+                "sy": 48,
+                "gx": 6,
+                "gy": 6,
+                "cx": 6,
+                "cy": 6,
+                "px": 0,
+                "py": 0
+            }
+        }
+    },
+    {
+        "id": "2d241c14b6e76ee5",
+        "type": "http in",
+        "z": "923edc309a474b66",
+        "name": "Receive Temperature",
+        "url": "/temperature",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 140,
+        "y": 80,
+        "wires": [
+            [
+                "c0b1508781a16896"
+            ]
+        ]
+    },
+    {
+        "id": "c0b1508781a16896",
+        "type": "json",
+        "z": "923edc309a474b66",
+        "name": "Parse JSON",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 340,
+        "y": 80,
+        "wires": [
+            [
+                "f18d8d2111bb92c6",
+                "fab36da13c745081"
+            ]
+        ]
+    },
+    {
+        "id": "f18d8d2111bb92c6",
+        "type": "function",
+        "z": "923edc309a474b66",
+        "name": "Check Temp & Set LED",
+        "func": "// Αν το payload είναι string, κάνε JSON.parse\nif (typeof msg.payload === \"string\") {\n  try {\n    msg.payload = JSON.parse(msg.payload);\n  } catch (e) {\n    node.error(\"❌ Αδυναμία μετατροπής σε JSON: \" + e.message);\n    return null;\n  }\n}\n\n// Debug εμφάνιση για επιβεβαίωση\nnode.warn(\"✅ Μετατροπή payload: \" + JSON.stringify(msg.payload));\n\n// Ανάγνωση θερμοκρασίας και υγρασίας\nlet temp = msg.payload.temperature;\nlet humidity = msg.payload.humidity || null;\n\n// Έλεγχος θερμοκρασίας και LED ON/OFF\nmsg.led_status = (temp > 15) ? \"ON\" : \"OFF\";\n\n// Εμφάνιση κατάστασης στο node\nnode.status({ fill: \"blue\", shape: \"dot\", text: \"Temp: \" + temp + \"°C - LED: \" + msg.led_status });\n\n// Μηνύματα εξόδου\nlet msgTempGauge = { payload: temp, topic: \"temperature\" };\nlet msgLEDStatus = { payload: msg.led_status, topic: \"led_status\" };\nlet msgToRaspi = { payload: { status: msg.led_status } };\nlet msgToOrion = {\n  payload: {\n    temperature: { type: \"Number\", value: temp },\n    led_status: { type: \"Text\", value: msg.led_status },\n    humidity: humidity ? { type: \"Number\", value: humidity } : undefined\n  },\n  headers: { \"Content-Type\": \"application/json\" }\n};\nlet msgResponse = { payload: { status: \"OK\", received: temp } };\n\n// Επιστροφή όλων των εξόδων\nreturn [msgTempGauge, msgLEDStatus, msgToRaspi, msgToOrion, msgResponse];\n",
+        "outputs": 5,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 310,
+        "y": 340,
+        "wires": [
+            [
+                "d1051975b9c3cc4d"
+            ],
+            [
+                "f2ca41d7964a2480"
+            ],
+            [
+                "660515fd11b5c631"
+            ],
+            [
+                "4f473bfc509b58f4"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "d1051975b9c3cc4d",
+        "type": "ui_gauge",
+        "z": "923edc309a474b66",
+        "name": "Temperature Gauge",
+        "group": "ui_group",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Temperature (°C)",
+        "label": "°C",
+        "format": "{{value}}",
+        "min": 0,
+        "max": 50,
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "className": "",
+        "x": 840,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "f2ca41d7964a2480",
+        "type": "ui_text",
+        "z": "923edc309a474b66",
+        "group": "ui_group",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "LED Status",
+        "label": "LED",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": "",
+        "color": "#000000",
+        "x": 850,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "660515fd11b5c631",
+        "type": "http request",
+        "z": "923edc309a474b66",
+        "name": "Send to Raspberry Pi",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "http://<RaspberryPi_IP>:5000/led",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 880,
+        "y": 200,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "4f473bfc509b58f4",
+        "type": "http request",
+        "z": "923edc309a474b66",
+        "name": "Update Orion",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "http://orion:1026/v2/entities/giannis-device/attrs",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 850,
+        "y": 280,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "fab36da13c745081",
+        "type": "http response",
+        "z": "923edc309a474b66",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 550,
+        "y": 60,
+        "wires": []
+    }
+]

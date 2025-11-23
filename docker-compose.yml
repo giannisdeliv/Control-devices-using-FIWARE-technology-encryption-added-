@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+
+  mongo-db:
+    image: mongo:4.4
+    container_name: mongo-db
+    ports:
+      - "27017:27017"
+    networks:
+      - fiware
+    volumes:
+      - mongo_data:/data/db
+
+  orion:
+    image: fiware/orion:3.10.1
+    container_name: orion
+    depends_on:
+      - mongo-db
+    ports:
+      - "1026:1026"
+    command: -dbhost mongo-db -logLevel DEBUG
+    networks:
+      - fiware
+
+  node-red:
+    image: nodered/node-red:3.1
+    container_name: node-red
+    ports:
+      - "1880:1880"
+    networks:
+      - fiware
+    volumes:
+      - node_red_data:/data
+    environment:
+      - TZ=Europe/Athens
+
+networks:
+  fiware:
+    driver: bridge
+
+volumes:
+  mongo_data:
+  node_red_data:
