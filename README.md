@@ -1,4 +1,5 @@
 # Control devices using FIWARE technology (basic + HMAC-secured versions)
+  (my personal Thesis ath EE and CS programme during my studied in DuTH University)
 
 This repository contains the implementation of an end-to-end IoT architecture using a **Raspberry Pi 4**, **Node-RED** and
 the **FIWARE Orion Context Broker**.
